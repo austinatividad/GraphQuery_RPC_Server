@@ -31,6 +31,10 @@ public:
 	string findShortestPath(const string& start_node, const string& end_node);
 	string findPrimePath(const string& start_node, const string& end_node);
 
+	// Helper methods for bandwidth management and error reporting
+	size_t getNodesCount() const { return nodes.size(); }
+	size_t getEdgesCount() const { return edges.size(); }
+
 	// constructor
 	Graph() = default;
 	// destructor
