@@ -10,6 +10,7 @@
 #include <algorithm>
 #include <functional>  // for std::function
 #include <tuple>
+#include "ThreadPool.h"
 
 using namespace std;
 
@@ -31,6 +32,10 @@ public:
 	string findShortestPath(const string& start_node, const string& end_node);
 	string findPrimePath(const string& start_node, const string& end_node);
 
+    // problem set 4 operations (parallelized)
+	string findShortestPathParallel(const string& start_node, const string& end_node);
+	string findPrimePathParallel(const string& start_node, const string& end_node);
+
 	// Helper methods for bandwidth management and error reporting
 	size_t getNodesCount() const { return nodes.size(); }
 	size_t getEdgesCount() const { return edges.size(); }
@@ -49,5 +54,8 @@ private:
     vector<pair<string, string>> edges;
     unordered_map<string, unordered_set<string>> adjacency_list;
     unordered_map<string, unordered_map<string, uint64_t>> edge_weights;
+
+    // Thread Pool for parallelized functions
+	ThreadPool threadPool{ std::thread::hardware_concurrency() }; // Use all available cores
 };
 

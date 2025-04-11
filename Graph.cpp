@@ -235,6 +235,168 @@ string Graph::findPrimePath(const string& start_node, const string& end_node) {
     return "No prime path from " + start_node + " to " + end_node;
 }
 
+string Graph::findShortestPathParallel(const string& start_node, const string& end_node)
+{
+    if (nodes_set.find(start_node) == nodes_set.end() || nodes_set.find(end_node) == nodes_set.end()) {
+        return "No path from " + start_node + " to " + end_node;
+    }
 
-// constructor
+    vector<pair<vector<string>, uint64_t>> all_paths;
+    mutex all_paths_mutex;
+
+    atomic<int> active_tasks{ 0 };
+    condition_variable cv;
+    mutex cv_mutex;
+
+    function<void(const string&, vector<string>, unordered_set<string>, uint64_t)> dfs_task;
+    dfs_task = [&](const string& current, vector<string> path, unordered_set<string> visited, uint64_t weight) {
+        if (current == end_node) {
+            lock_guard<mutex> lock(all_paths_mutex);
+            all_paths.emplace_back(path, weight);
+            if (--active_tasks == 0) cv.notify_one();
+            return;
+        }
+
+        if (adjacency_list.find(current) == adjacency_list.end()) {
+            if (--active_tasks == 0) cv.notify_one();
+            return;
+        }
+
+        for (const auto& neighbor : adjacency_list[current]) {
+            if (visited.find(neighbor) == visited.end()) {
+                vector<string> new_path = path;
+                unordered_set<string> new_visited = visited;
+
+                new_path.push_back(neighbor);
+                new_visited.insert(neighbor);
+
+                uint64_t edge_weight = edge_weights[current][neighbor];
+                uint64_t new_weight = weight + edge_weight;
+
+                active_tasks++;
+                threadPool.enqueue([&, neighbor, new_path, new_visited, new_weight]() {
+                    dfs_task(neighbor, new_path, new_visited, new_weight);
+                    });
+            }
+        }
+
+        if (--active_tasks == 0) cv.notify_one();
+        };
+
+    vector<string> start_path = { start_node };
+    unordered_set<string> start_visited = { start_node };
+
+    active_tasks++;
+    dfs_task(start_node, start_path, start_visited, 0);
+
+    // Wait for all tasks to complete
+    unique_lock<mutex> lock(cv_mutex);
+    cv.wait(lock, [&] { return active_tasks == 0; });
+
+    if (all_paths.empty()) {
+        return "No path from " + start_node + " to " + end_node;
+    }
+
+    auto best = all_paths[0];
+    for (const auto& p : all_paths) {
+        if (p.second < best.second) {
+            best = p;
+        }
+    }
+
+    string result;
+    for (size_t i = 0; i < best.first.size() - 1; ++i) {
+        string current = best.first[i];
+        string next = best.first[i + 1];
+        uint64_t w = edge_weights[current][next];
+        result += current + " -{" + to_string(w) + "}-> ";
+    }
+    result += best.first.back();
+    result += " = " + to_string(best.second);
+
+    return result;
+}
+
+
+
+string Graph::findPrimePathParallel(const string& start_node, const string& end_node)
+{
+    if (nodes_set.find(start_node) == nodes_set.end() || nodes_set.find(end_node) == nodes_set.end()) {
+        return "No prime path from " + start_node + " to " + end_node;
+    }
+
+    vector<pair<vector<string>, uint64_t>> prime_paths;
+    mutex prime_paths_mutex;
+
+    atomic<int> active_tasks{ 0 };
+    condition_variable cv;
+    mutex cv_mutex;
+
+    function<void(const string&, vector<string>, unordered_set<string>, uint64_t)> dfs_task;
+    dfs_task = [&](const string& current, vector<string> path, unordered_set<string> visited, uint64_t weight) {
+        if (current == end_node && isPrime(weight)) {
+            lock_guard<mutex> lock(prime_paths_mutex);
+            prime_paths.emplace_back(path, weight);
+        }
+
+        if (adjacency_list.find(current) == adjacency_list.end()) {
+            if (--active_tasks == 0) cv.notify_one();
+            return;
+        }
+
+        for (const auto& neighbor : adjacency_list[current]) {
+            if (visited.find(neighbor) == visited.end()) {
+                vector<string> new_path = path;
+                unordered_set<string> new_visited = visited;
+
+                new_path.push_back(neighbor);
+                new_visited.insert(neighbor);
+
+                uint64_t edge_weight = edge_weights[current][neighbor];
+                uint64_t new_weight = weight + edge_weight;
+
+                active_tasks++;
+                threadPool.enqueue([&, neighbor, new_path, new_visited, new_weight]() {
+                    dfs_task(neighbor, new_path, new_visited, new_weight);
+                    });
+            }
+        }
+
+        if (--active_tasks == 0) cv.notify_one();
+        };
+
+    vector<string> start_path = { start_node };
+    unordered_set<string> start_visited = { start_node };
+
+    active_tasks++;
+    dfs_task(start_node, start_path, start_visited, 0);
+
+    // Wait for all tasks to complete
+    unique_lock<mutex> lock(cv_mutex);
+    cv.wait(lock, [&] { return active_tasks == 0; });
+
+    if (prime_paths.empty()) {
+        return "No prime path from " + start_node + " to " + end_node;
+    }
+
+    // Return the shortest prime path found (or customize this to return the first/favored/etc.)
+    auto best = prime_paths[0];
+    for (const auto& p : prime_paths) {
+        if (p.second < best.second) {
+            best = p;
+        }
+    }
+
+    string result;
+    for (size_t i = 0; i < best.first.size() - 1; ++i) {
+        string current = best.first[i];
+        string next = best.first[i + 1];
+        uint64_t w = edge_weights[current][next];
+        result += current + " -{" + to_string(w) + "}-> ";
+    }
+    result += best.first.back();
+    result += " = " + to_string(best.second) + " is prime!";
+
+    return result;
+}
 

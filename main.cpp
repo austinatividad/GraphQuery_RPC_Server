@@ -584,7 +584,7 @@ int main() {
 			auto start_time = std::chrono::high_resolution_clock::now();
 			
 			// Call the Graph method to find the shortest path
-			string result = graph.findShortestPath(start_node, end_node);
+			string result = graph.findShortestPathParallel(start_node, end_node);
 			
 			// Calculate operation duration
 			auto end_time = std::chrono::high_resolution_clock::now();
@@ -704,7 +704,9 @@ int main() {
 			auto start_time = std::chrono::high_resolution_clock::now();
 			
 			// Call the Graph method to find the prime path
-			string result = graph.findPrimePath(start_node, end_node);
+			string result = graph.findPrimePathParallel(start_node, end_node);
+
+
 			
 			// Calculate operation duration
 			auto end_time = std::chrono::high_resolution_clock::now();
